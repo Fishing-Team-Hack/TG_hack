@@ -52,7 +52,7 @@ def handle_get_car_plate(message):
 
     _, buffer = cv2.imencode('.png', processed_img)
     img_bytes = BytesIO(buffer.tobytes())
-
+    bot.reply_to(message, "Вот обработанные номера с камеры:")
     bot.send_photo(message.chat.id, img_bytes)
 
 
