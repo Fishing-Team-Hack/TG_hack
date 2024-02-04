@@ -47,7 +47,7 @@ def process_image(img_path):
 
 @bot.message_handler(commands=['get_car_plate'])
 def handle_get_car_plate(message):
-    img_path = 'C:\code_c\TG_hack\cars\car1.jpg'
+    img_path = 'C:\code_c\TG_hack\cars\car4.jpg'
     processed_img = process_image(img_path)
 
     _, buffer = cv2.imencode('.png', processed_img)
