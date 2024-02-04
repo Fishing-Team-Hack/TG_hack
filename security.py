@@ -1,8 +1,8 @@
 from telebot import types
 import telebot
 import cv2
+from io import BytesIO
 import sqlite3
-import matplotlib as plt
 from config import settings
 
 
@@ -12,6 +12,48 @@ def connect_to_database():
 
 
 bot = telebot.TeleBot(settings['TOKEN_SEC'])
+
+
+def open_img(img_path):
+    carplate_img = cv2.imread(img_path)
+    carplate_img = cv2.cvtColor(carplate_img, cv2.COLOR_BGR2RGB)
+    return carplate_img
+
+
+def carplate_extract(image, carplate_haar_cascade):
+    carplate_rects = carplate_haar_cascade.detectMultiScale(image, scaleFactor=1.1, minNeighbors=5)
+    for x, y, w, h in carplate_rects:
+        carplate_img = image[y+15:y+h-10, x+15:x+w-20]
+        return carplate_img
+
+
+def enlarge_img(image, scale_percent):
+    width = int(image.shape[1] * scale_percent / 100)
+    height = int(image.shape[0] * scale_percent / 100)
+    dim = (width, height)
+    resized_image = cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
+    return resized_image
+
+
+def process_image(img_path):
+    carplate_img_rgb = open_img(img_path)
+    carplate_haar_cascade = cv2.CascadeClassifier('C:\code_c\Tg_hack\haarcascade_russian_plate_number.xml')
+
+    carplate_extract_img = carplate_extract(carplate_img_rgb, carplate_haar_cascade)
+    carplate_extract_img = enlarge_img(carplate_extract_img, 150)
+
+    return carplate_extract_img
+
+
+@bot.message_handler(commands=['get_car_plate'])
+def handle_get_car_plate(message):
+    img_path = 'C:\code_c\TG_hack\cars\car1.jpg'
+    processed_img = process_image(img_path)
+
+    _, buffer = cv2.imencode('.png', processed_img)
+    img_bytes = BytesIO(buffer.tobytes())
+
+    bot.send_photo(message.chat.id, img_bytes)
 
 
 @bot.message_handler(commands=['start'])
@@ -34,8 +76,6 @@ def start(message):
 
     else:
         bot.reply_to(message, "Добро пожаловать! Пожалуйста, введите ваше имя:")
-
-
 
 
 def process_first_name(message):
@@ -127,57 +167,5 @@ def handle_user_id(message):
     else:
         bot.reply_to(message, "Пользователь с таким ID не найден.")
 
-
-@bot.message_handler(commands=['send_car_plate'])
-def handle_send_car_plate(message):
-    try:
-        def open_img(img_path):
-            carplate_img = cv2.imread(img_path)
-            carplate_img = cv2.cvtColor(carplate_img, cv2.COLOR_BGR2RGB)
-            plt.axis('off')
-            plt.imshow(carplate_img)
-            # plt.show()
-
-            return carplate_img
-
-        def carplate_extract(image, carplate_haar_cascade):
-            carplate_rects = carplate_haar_cascade.detectMultiScale(image, scaleFactor=1.1, minNeighbors=5)
-            for x, y, w, h in carplate_rects:
-                carplate_img = image[y + 15:y + h - 10, x + 15:x + w - 20]
-
-                return carplate_img
-
-        def enlarge_img(image, scale_percent):
-            width = int(image.shape[1] * scale_percent / 100)
-            height = int(image.shape[0] * scale_percent / 100)
-            dim = (width, height)
-            plt.axis('off')
-            resized_image = cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
-
-            return resized_image
-
-        def main(message: message):
-            carplate_img_rgb = open_img(img_path='C:\code_c\TG_hack\cars\car1.jpg')
-            carplate_haar_cascade = cv2.CascadeClassifier('C:\code_c\TG_hack\haarcascade_russian_plate_number.xml')
-
-            carplate_extract_img = carplate_extract(carplate_img_rgb, carplate_haar_cascade)
-            carplate_extract_img = enlarge_img(carplate_extract_img, 150)
-            plt.imshow(carplate_extract_img)
-            plt.show()
-
-            carplate_extract_img_gray = cv2.cvtColor(carplate_extract_img, cv2.COLOR_RGB2GRAY)
-            plt.axis('off')
-            plt.imshow(carplate_extract_img_gray, cmap='gray')
-            plt.show()
-
-            cv2.imwrite('carplate_extract_img.jpg', carplate_extract_img_gray)
-
-            with open('carplate_extract_img.jpg', 'rb') as photo:
-                bot.send_photo(message.chat.id, photo)
-
-            plt.close()
-
-    except Exception as e:
-        bot.send_message(message.chat.id, f"Произошла ошибка: {str(e)}")
 
 bot.polling()
